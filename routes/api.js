@@ -22,13 +22,13 @@ router.post('/signup', function (req, res, next) {
     var post = req.body;
     if (!post.email || !post.password) {
         res.send(JSON.stringify({
-            status: 'fail',
-            error: 'email or password was missing'
+            status: 'error',
+            data: 'email or password was missing'
         }));
     } else if (findUser(post.email)) {
         res.send(JSON.stringify({
-            status: 'fail',
-            error: 'username already exists'
+            status: 'error',
+            data: 'username already exists'
         }));
     } else {
         bcrypt.hash(post.password, saltRounds, function (err, hash) {
@@ -38,7 +38,7 @@ router.post('/signup', function (req, res, next) {
             });
         });
         res.send(JSON.stringify({
-            status: 'ok'
+            status: 'success'
         }));
     }
 });
@@ -47,8 +47,8 @@ router.post('/auth', function (req, res, next) {
     var post = req.body;
     if (!post.email || !post.password) {
         res.send(JSON.stringify({
-            status: 'fail',
-            error: 'email or password was missing'
+            status: 'error',
+            data: 'email or password was missing'
         }));
     } else {
         var authUser = findUser(post.email);
@@ -56,20 +56,20 @@ router.post('/auth', function (req, res, next) {
             bcrypt.compare(post.password, authUser.password, function(err, good) {
                 if (good) {
                     res.send(JSON.stringify({
-                        status: 'ok',
-                        message: 'you got authenticated as ' + authUser.email
+                        status: 'success',
+                        data: 'you got authenticated as ' + authUser.email
                     }));
                 } else {
                     res.send(JSON.stringify({
-                        status: 'fail',
-                        error: 'wrong password'
+                        status: 'error',
+                        data: 'wrong password'
                     }));
                 }
             });
         } else {
             res.send(JSON.stringify({
-                status: 'fail',
-                error: 'user does not exist'
+                status: 'error',
+                data: 'user does not exist'
             }));
         }
     }
