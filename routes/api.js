@@ -10,11 +10,6 @@ Promise.promisifyAll(require('bcrypt'));
 mongoose.connect('mongodb://localhost:27017/eventmanager');
 var User = require('../models/user');
 
-var saltRounds = 10;
-var users = [];
-
-
-
 router.get('/debug', (req, res, next) => {
   User.find()
   .then(user => res.send(user))
