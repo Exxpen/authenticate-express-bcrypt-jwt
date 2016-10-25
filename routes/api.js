@@ -3,76 +3,59 @@ var bodyParser = require('body-parser');
 var bcrypt = require('bcrypt');
 var jwt = require('jsonwebtoken');
 var router = express.Router();
+var Promise = require('bluebird');
+var mongoose = require('mongoose');
+mongoose.Promise = require('bluebird');
+Promise.promisifyAll(require('bcrypt'));
+mongoose.connect('mongodb://localhost:27017/eventmanager');
+var User = require('../models/user');
 
 var saltRounds = 10;
 var users = [];
 
-function findUser(email) {
-    var user = users.find(function (element) {
-        return element.email === email
+
+
+router.get('/debug', (req, res, next) => {
+  User.find()
+  .then(user => res.send(user))
+  .catch(err => res.send(err));
+});
+
+router.post('/signup', (req, res, next) => {
+  if (!req.body.email || !req.body.password || !req.body.firstName || !req.body.lastName) {
+    return res.send({
+      status: 'error',
+      data: 'field missing'
     });
-    return (typeof user === 'undefined') ? false : user;
-}
-
-router.get('/debug', function(req, res, next) {
-    res.send(JSON.stringify(users));
+  }
+  let newUser = new User({
+    email: req.body.email,
+    password: req.body.password,
+    firstName: req.body.firstName,
+    lastName: req.body.lastName
+  }).save().then(user => res.send({
+    status: 'success',
+    data: 'user signed up as ' + user.email
+  }))
+  .catch(err => res.send({ status: 'error', data: err.errmsg }));
 });
 
-router.post('/signup', function (req, res, next) {
-    var post = req.body;
-    if (!post.email || !post.password) {
-        res.send(JSON.stringify({
-            status: 'error',
-            data: 'email or password was missing'
-        }));
-    } else if (findUser(post.email)) {
-        res.send(JSON.stringify({
-            status: 'error',
-            data: 'username already exists'
-        }));
-    } else {
-        bcrypt.hash(post.password, saltRounds, function (err, hash) {
-            users.push({
-                email: post.email,
-                password: hash
-            });
-        });
-        res.send(JSON.stringify({
-            status: 'success'
-        }));
-    }
-});
+router.post('/signin', (req, res, next) => {
+  if (!req.body.email || !req.body.password) return res.send({ status: 'error', data: 'field missing' });
 
-router.post('/auth', function (req, res, next) {
-    var post = req.body;
-    if (!post.email || !post.password) {
-        res.send(JSON.stringify({
-            status: 'error',
-            data: 'email or password was missing'
-        }));
-    } else {
-        var authUser = findUser(post.email);
-        if (authUser) {
-            bcrypt.compare(post.password, authUser.password, function(err, good) {
-                if (good) {
-                    res.send(JSON.stringify({
-                        status: 'success',
-                        data: 'you got authenticated as ' + authUser.email
-                    }));
-                } else {
-                    res.send(JSON.stringify({
-                        status: 'error',
-                        data: 'wrong password'
-                    }));
-                }
-            });
-        } else {
-            res.send(JSON.stringify({
-                status: 'error',
-                data: 'user does not exist'
-            }));
-        }
-    }
+  User.findOne().where({ email: req.body.email })
+  .then(user => {
+    if (!user) return res.send({ status: 'error', data: 'user does not exist' });
+    user.comparePassword(req.body.password, (err, isMatch) => {
+      if (err) return res.send({ status: 'error', data: 'bcrypt erro' });
+      if (!isMatch) return res.send({ status: 'error', data: 'wrong credentials' });
+      return res.send({
+        status: 'success',
+        data: 'you got authenticated as ' + user.email,
+      });
+    });
+  })
+  .catch(err =>res.send({ status: 'error', data: 'err' }));
 });
 
 module.exports = router;
