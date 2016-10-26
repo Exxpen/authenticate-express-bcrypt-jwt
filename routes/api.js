@@ -1,7 +1,5 @@
 var express = require('express');
 var bodyParser = require('body-parser');
-var bcrypt = require('bcrypt');
-var jwt = require('jsonwebtoken');
 var router = express.Router();
 var Promise = require('bluebird');
 var mongoose = require('mongoose');
@@ -14,6 +12,31 @@ router.get('/debug', (req, res, next) => {
   User.find()
   .then(user => res.send(user))
   .catch(err => res.send(err));
+});
+
+router.get('/protected', (req, res, next) => {
+  let token = req.headers['x-access-token'] || req.body.token || req.headers['token'];
+  if (!token) {
+    return res.send({
+      status: 'error',
+      data: 'authorization token missing'
+    });
+  }
+  let decodedToken = User.verifyJWT(token);
+  if (!decodedToken) {
+    return res.send({
+      status: 'error',
+      data: 'bad token'
+    });
+  }
+  return res.send({
+    status: 'success',
+    data: decodedToken
+  })
+});
+
+router.get('/debugjwt', (req, res, next) => {
+  res.send(req.headers);
 });
 
 router.post('/signup', (req, res, next) => {
@@ -30,7 +53,8 @@ router.post('/signup', (req, res, next) => {
     lastName: req.body.lastName
   }).save().then(user => res.send({
     status: 'success',
-    data: 'user signed up as ' + user.email
+    data: 'user signed up as ' + user.email,
+    token: user.getJWT()
   }))
   .catch(err => res.send({ status: 'error', data: err.errmsg }));
 });
@@ -42,11 +66,12 @@ router.post('/signin', (req, res, next) => {
   .then(user => {
     if (!user) return res.send({ status: 'error', data: 'user does not exist' });
     user.comparePassword(req.body.password, (err, isMatch) => {
-      if (err) return res.send({ status: 'error', data: 'bcrypt erro' });
+      if (err) return res.send({ status: 'error', data: 'bcrypt error' });
       if (!isMatch) return res.send({ status: 'error', data: 'wrong credentials' });
       return res.send({
         status: 'success',
         data: 'you got authenticated as ' + user.email,
+        token: user.getJWT()
       });
     });
   })

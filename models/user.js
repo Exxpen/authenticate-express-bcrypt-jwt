@@ -2,10 +2,9 @@ var bcrypt = require('bcrypt');
 var jwt = require('jsonwebtoken');
 var Promise = require('bluebird');
 var mongoose = require('mongoose');
-Promise.promisifyAll(require('bcrypt'));
-var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var saltRounds = 10;
+var secretKey = '9fe173ffbecafed536ffbc1c5ce3c27b672a6433a340e4a7032b9d64312a88ff';
 
 var userSchema = new Schema({
   firstName: {
@@ -51,6 +50,22 @@ userSchema.methods.comparePassword = function (candidatePassword, cb) {
     if (err) return cb(err);
     cb(null, isMatch);
   });
+};
+
+userSchema.methods.getJWT = function () {
+  return jwt.sign({
+    email: this.email,
+    firstName: this.firstName,
+    lastName: this.lastName
+  }, secretKey);
+};
+
+userSchema.statics.verifyJWT = function (token) {
+  try {
+    return jwt.verify(token, secretKey);
+  } catch (err) {
+    return false;
+  }
 };
 
 var User = mongoose.model('User', userSchema);
